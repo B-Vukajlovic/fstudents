@@ -18,6 +18,12 @@ public class PlayerMovement : MonoBehaviour
     [Tooltip("How far below the capsule to check for ground.")]
     public float groundCheckOffset = 0.1f;
 
+    [Tooltip("Dive Settings")]
+    public float diveForce = 10f;
+    public float diveCooldown = 1f;
+    public float diveDuration = 0.4f;
+
+
     private Rigidbody rb;
     private CapsuleCollider capsule;
     private PlayerControls controls;
@@ -26,6 +32,10 @@ public class PlayerMovement : MonoBehaviour
     private Vector2 moveInput = Vector2.zero;
     private bool jumpPressed = false;
     private bool sprintPressed = false;
+    private bool diveRequested = false;    // Has player just pressed dive?
+    private bool isDiving = false;         // Are we currently diving?
+    private float diveEndTime = 0f;        // When the dive should stop
+    private float lastDiveTime = -Mathf.Infinity; // When the last dive happened
 
     private void Awake()
     {
@@ -64,6 +74,15 @@ public class PlayerMovement : MonoBehaviour
         {
             sprintPressed = false;
         };
+
+        controls.Player.Dive.performed += ctx =>
+        {
+            if (Time.time >= diveCooldown + lastDiveTime)
+            {
+                diveRequested = true;
+
+            }
+        };
     }
 
     private void OnEnable()
@@ -78,6 +97,49 @@ public class PlayerMovement : MonoBehaviour
 
     private void FixedUpdate()
     {
+
+        // Are we in the middle of a dive?
+        if (isDiving)
+        {
+            if (Time.time < diveEndTime)
+                return; // still diving — skip normal movement
+            else
+                isDiving = false; // dive ended
+        }
+        if (diveRequested)
+        {
+            isDiving = true;
+            diveRequested = false;
+            lastDiveTime = Time.time;
+            diveEndTime = Time.time + diveDuration;
+
+            Vector3 diveDirection = new Vector3(moveInput.x, 0f, moveInput.y).normalized;
+            if (diveDirection.magnitude == 0f)
+            {
+                // Default direction if no input (e.g., falling straight down)
+                diveDirection = transform.forward;
+            }
+            diveDirection = diveDirection.normalized;
+
+            Vector3 finalVelocity = diveDirection * diveForce;
+
+            if (!CheckIfGrounded())
+            {
+                // Aerial dive – add downward force to simulate dive drop
+                finalVelocity.y = -diveForce * 0.2f;
+            }
+            else
+            {
+                // Ground dash – preserve current Y velocity (jumping etc.)
+                finalVelocity.y = rb.linearVelocity.y;
+            }
+
+            rb.linearVelocity = finalVelocity;
+            return;
+        }
+
+
+
         // 1. Base horizontal move vector (local space)
         Vector3 moveDirection = new Vector3(moveInput.x, 0f, moveInput.y);
 
