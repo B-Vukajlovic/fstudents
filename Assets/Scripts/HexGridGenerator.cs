@@ -1,22 +1,30 @@
+// HexGridGenerator.cs
+// Generates a flat-topped hexagonal grid within a circular radius.
+
 using UnityEngine;
 
 public class HexGridGenerator : MonoBehaviour
 {
     [Header("Circle Fill Settings")]
-    public float fillRadius = 10f;      // Circle radius in world units
+    [Tooltip("Circle radius in world units.")]
+    public float fillRadius = 10f;
 
     [Header("Hexagon Settings")]
-    public GameObject hexTilePrefab;    // Prefab must have HexTile.cs on it
-    public float hexRadius = 1f;        // Distance from center to any vertex
+    [Tooltip("Prefab of a hex tile; must have HexTile.cs attached.")]
+    public GameObject hexTilePrefab;
+
+    [Tooltip("Distance from hexagon center to any vertex.")]
+    public float hexRadius = 1f;
 
     [Header("Spacing (Gap between tiles)")]
-    [Tooltip("Extra distance (in world units) between the edges of adjacent hexes.")]
+    [Tooltip("Extra distance (world units) between edges of adjacent hexes.")]
     public float spacing = 0.1f;
 
     [Header("Height Settings")]
-    public float baseHeight = 2f;       // Y-position to spawn all tiles
+    [Tooltip("Y-position at which to spawn all tiles.")]
+    public float baseHeight = 2f;
 
-    void Start()
+    private void Start()
     {
         if (hexTilePrefab == null)
         {
@@ -25,29 +33,30 @@ public class HexGridGenerator : MonoBehaviour
             return;
         }
 
-        // 1) Compute hex dimensions (flat-topped):
-        float hexWidth  = hexRadius * 2f;                // from leftmost to rightmost vertex
-        float hexHeight = Mathf.Sqrt(3f) * hexRadius;    // from top to bottom vertex
+        // Compute hex dimensions for a flat-topped layout
+        float hexWidth  = hexRadius * 2f;                 // From leftmost to rightmost vertex
+        float hexHeight = Mathf.Sqrt(3f) * hexRadius;     // From top to bottom vertex
 
-        // 2) Compute center‐to‐center spacings, adding the extra 'spacing':
+        // Calculate center-to-center spacing with extra gap
         float horizontalSpacing = (hexWidth * 0.75f) + spacing;
         float verticalSpacing   = hexHeight + spacing;
 
-        // 3) Determine how many columns/rows are needed to cover the circle:
+        // Determine the max columns/rows needed to cover the circle
         int maxCols = Mathf.CeilToInt(fillRadius / horizontalSpacing);
         int maxRows = Mathf.CeilToInt(fillRadius / verticalSpacing);
 
-        // Preserve any rotation the prefab had originally
+        // Preserve any rotation that the prefab originally had
         Quaternion prefabRotation = hexTilePrefab.transform.rotation;
 
+        // Loop through a square grid that fully encloses the circle
         for (int col = -maxCols; col <= maxCols; col++)
         {
             for (int row = -maxRows; row <= maxRows; row++)
             {
-                // Compute the un‐offset x position for this column
+                // Compute X position of this column
                 float xPos = col * horizontalSpacing;
 
-                // In a flat-topped layout, odd columns sit half a row down
+                // In a flat-topped grid, odd columns are offset 0.5 row down
                 float zOffset = (Mathf.Abs(col) % 2 == 1) ? (verticalSpacing * 0.5f) : 0f;
                 float zPos    = row * verticalSpacing + zOffset;
 
@@ -60,10 +69,11 @@ public class HexGridGenerator : MonoBehaviour
                         hexTilePrefab,
                         worldPos,
                         prefabRotation,
-                        transform    // parent under this generator
+                        transform // parent under this generator
                     );
+
                     hexGO.name = $"Hex_{col}_{row}";
-                    // The HexTile component on the prefab will handle falling/respawning
+                    // The HexTile component on the prefab handles falling/respawning
                 }
             }
         }

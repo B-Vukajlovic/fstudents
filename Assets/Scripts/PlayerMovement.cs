@@ -1,5 +1,8 @@
+// PlayerMovement.cs
+// Handles player movement (walking, sprinting), jumping, rotating to face movement direction,
+// and a one‐time air dash/dive feature that stays tilted until landing.
+
 using UnityEngine;
-using UnityEngine.InputSystem;
 
 [RequireComponent(typeof(Rigidbody))]
 [RequireComponent(typeof(CapsuleCollider))]
@@ -15,74 +18,68 @@ public class PlayerMovement : MonoBehaviour
     [Tooltip("Jump impulse force.")]
     public float jumpForce = 7f;
 
+    [Tooltip("Rotation speed (degrees/sec) for smoothing.")]
+    public float rotationSpeed = 360f;
+
+    [Header("Ground Check")]
+    [Tooltip("Layers considered as ground.")]
+    public LayerMask groundLayerMask;
+
     [Tooltip("How far below the capsule to check for ground.")]
     public float groundCheckOffset = 0.1f;
 
-    [Tooltip("Dive Settings")]
-    public float diveForce = 10f;
-    public float diveCooldown = 1f;
-    public float diveDuration = 0.4f;
+    [Header("Dash (Dive) Settings")]
+    [Tooltip("Speed of the dash (units/sec).")]
+    public float dashSpeed = 15f;
 
+    [Tooltip("Duration of the dash in seconds.")]
+    public float dashDuration = 0.2f;
 
-    private Rigidbody rb;
+    [Tooltip("When dashing in the air, what fraction of dashSpeed is applied upward.")]
+    [Range(0f, 1f)]
+    public float upwardDashFactor = 0.3f;
+
+    [Tooltip("Tilt angle (in degrees) forward while dashing.")]
+    public float dashTiltAngle = 15f;
+
+    private Rigidbody       rb;
     private CapsuleCollider capsule;
-    private PlayerControls controls;
+    private PlayerControls  controls;
 
-    // Raw input values:
-    private Vector2 moveInput = Vector2.zero;
-    private bool jumpPressed = false;
-    private bool sprintPressed = false;
-    private bool diveRequested = false;    // Has player just pressed dive?
-    private bool isDiving = false;         // Are we currently diving?
-    private float diveEndTime = 0f;        // When the dive should stop
-    private float lastDiveTime = -Mathf.Infinity; // When the last dive happened
+    private Vector2 moveInput     = Vector2.zero;
+    private bool    jumpPressed   = false;
+    private bool    sprintPressed = false;
+
+    // Dash state:
+    private bool    isDashing     = false;
+    private float   dashTimeLeft  = 0f;
+    private Vector3 dashDirection = Vector3.zero;
+    private bool    hasDashed     = false;
 
     private void Awake()
     {
-        rb = GetComponent<Rigidbody>();
+        rb      = GetComponent<Rigidbody>();
         capsule = GetComponent<CapsuleCollider>();
 
-        // Prevent tipping over:
+        // Freeze rotation on X/Z so we only rotate around Y manually
         rb.constraints = RigidbodyConstraints.FreezeRotationX
                        | RigidbodyConstraints.FreezeRotationZ;
 
-        // Initialize Input System
         controls = new PlayerControls();
 
-        // Move callbacks:
-        controls.Player.Move.performed += ctx =>
-        {
-            moveInput = ctx.ReadValue<Vector2>();
-        };
-        controls.Player.Move.canceled += ctx =>
-        {
-            moveInput = Vector2.zero;
-        };
+        // Move input
+        controls.Player.Move.performed += ctx => moveInput     = ctx.ReadValue<Vector2>();
+        controls.Player.Move.canceled  += ctx => moveInput     = Vector2.zero;
 
-        // Jump callback:
-        controls.Player.Jump.performed += ctx =>
-        {
-            jumpPressed = true;
-        };
+        // Jump input
+        controls.Player.Jump.performed += ctx => jumpPressed   = true;
 
-        // Sprint callbacks:
-        controls.Player.Sprint.performed += ctx =>
-        {
-            sprintPressed = true;
-        };
-        controls.Player.Sprint.canceled += ctx =>
-        {
-            sprintPressed = false;
-        };
+        // Sprint input
+        controls.Player.Sprint.performed += ctx => sprintPressed = true;
+        controls.Player.Sprint.canceled  += ctx => sprintPressed = false;
 
-        controls.Player.Dive.performed += ctx =>
-        {
-            if (Time.time >= diveCooldown + lastDiveTime)
-            {
-                diveRequested = true;
-
-            }
-        };
+        // Dash/Dive input
+        controls.Player.Dive.performed += ctx => TryStartDash();
     }
 
     private void OnEnable()
@@ -97,86 +94,123 @@ public class PlayerMovement : MonoBehaviour
 
     private void FixedUpdate()
     {
-
-        // Are we in the middle of a dive?
-        if (isDiving)
+        // If we are currently in a dash, handle dash movement & tilt until grounded
+        if (isDashing)
         {
-            if (Time.time < diveEndTime)
-                return; // still diving — skip normal movement
-            else
-                isDiving = false; // dive ended
-        }
-        if (diveRequested)
-        {
-            isDiving = true;
-            diveRequested = false;
-            lastDiveTime = Time.time;
-            diveEndTime = Time.time + diveDuration;
-
-            Vector3 diveDirection = new Vector3(moveInput.x, 0f, moveInput.y).normalized;
-            if (diveDirection.magnitude == 0f)
-            {
-                // Default direction if no input (e.g., falling straight down)
-                diveDirection = transform.forward;
-            }
-            diveDirection = diveDirection.normalized;
-
-            Vector3 finalVelocity = diveDirection * diveForce;
-
-            if (!CheckIfGrounded())
-            {
-                // Aerial dive – add downward force to simulate dive drop
-                finalVelocity.y = -diveForce * 0.2f;
-            }
-            else
-            {
-                // Ground dash – preserve current Y velocity (jumping etc.)
-                finalVelocity.y = rb.linearVelocity.y;
-            }
-
-            rb.linearVelocity = finalVelocity;
+            HandleDashing();
             return;
         }
 
+        // Otherwise, normal movement:
 
+        // Build world‐space input direction
+        Vector3 inputDirection = new Vector3(moveInput.x, 0f, moveInput.y);
 
-        // 1. Base horizontal move vector (local space)
-        Vector3 moveDirection = new Vector3(moveInput.x, 0f, moveInput.y);
+        // Calculate current move speed (account for sprint)
+        float currentSpeed = moveSpeed * (sprintPressed ? sprintMultiplier : 1f);
+        Vector3 worldMove = (inputDirection.sqrMagnitude > 1f)
+            ? inputDirection.normalized * currentSpeed
+            : inputDirection * currentSpeed;
 
-        // 2. Determine current speed (sprint or walk)
-        float currentSpeed = moveSpeed;
-        if (sprintPressed)
-            currentSpeed *= sprintMultiplier;
-
-        // 3. Convert to world space and scale by deltaTime after assigning to velocity
-        Vector3 worldMove = transform.TransformDirection(moveDirection) * currentSpeed;
-
-        // 4. Check if grounded
-        bool isGrounded = CheckIfGrounded();
-
-        // 5. Build new velocity (preserve existing vertical velocity until jump)
-        Vector3 newVelocity = new Vector3(
-            worldMove.x,
-            rb.linearVelocity.y,
-            worldMove.z
-        );
-
-        // 6. Jump if requested & grounded
-        if (jumpPressed && isGrounded)
+        // Smoothly rotate toward movement direction (if any)
+        if (inputDirection.sqrMagnitude > 0.001f)
         {
-            newVelocity.y = jumpForce;
-            jumpPressed = false; // consume the jump
+            Quaternion targetRot = Quaternion.LookRotation(inputDirection.normalized);
+            transform.rotation = Quaternion.RotateTowards(
+                transform.rotation,
+                targetRot,
+                rotationSpeed * Time.fixedDeltaTime
+            );
         }
 
-        // 7. Assign to Rigidbody
-        rb.linearVelocity = newVelocity;
+        // Ground check
+        bool isGrounded = IsGrounded();
+
+        // Reset dash availability when grounded
+        if (isGrounded)
+        {
+            hasDashed = false;
+        }
+
+        // Apply movement + jump if on ground
+        if (isGrounded)
+        {
+            rb.linearVelocity = new Vector3(worldMove.x, rb.linearVelocity.y, worldMove.z);
+
+            if (jumpPressed)
+            {
+                rb.AddForce(Vector3.up * jumpForce, ForceMode.Impulse);
+            }
+        }
+        else
+        {
+            // In air: preserve existing velocity (no additional horizontal forces here)
+            rb.linearVelocity = new Vector3(rb.linearVelocity.x, rb.linearVelocity.y, rb.linearVelocity.z);
+        }
+
+        // Reset jumpPressed for next frame
+        jumpPressed = false;
     }
 
-    private bool CheckIfGrounded()
+    private void TryStartDash()
     {
-        Vector3 origin = transform.position + capsule.center;
-        float rayLength = (capsule.height * 0.5f) + groundCheckOffset;
+        // Only allow a dash if:
+        // - player is in the air (not grounded)
+        // - player hasn’t dashed yet since last landing
+        if (IsGrounded() || hasDashed || isDashing)
+        {
+            return;
+        }
 
-        return Physics.Raycast(origin, Vector3.down, rayLength);
+        // Begin a new dash:
+        isDashing    = true;
+        dashTimeLeft = dashDuration;
+        hasDashed    = true;
+
+        // Determine dash direction: forward + small upward component
+        Vector3 forward = transform.forward.normalized;
+        dashDirection = (forward + Vector3.up * upwardDashFactor).normalized;
+
+        // Immediately set velocity so dash “feels” instant:
+        rb.linearVelocity = dashDirection * dashSpeed;
+    }
+
+    private void HandleDashing()
+    {
+        // If dashDuration not over, continue overriding velocity:
+        if (dashTimeLeft > 0f)
+        {
+            rb.linearVelocity = dashDirection * dashSpeed;
+            dashTimeLeft -= Time.fixedDeltaTime;
+        }
+
+        // Always tilt to face the dash direction while airborne:
+        if (!IsGrounded())
+        {
+            // Compute yaw from dashDirection (so facing horizontal)
+            float yaw = Mathf.Atan2(dashDirection.x, dashDirection.z) * Mathf.Rad2Deg;
+            // Apply a forward-facing pitch of dashTiltAngle (negative for nose-down)
+            transform.rotation = Quaternion.Euler(-dashTiltAngle, yaw, 0f);
+        }
+        else
+        {
+            // Landed: end the dash/tilt state
+            isDashing = false;
+        }
+    }
+
+    private bool IsGrounded()
+    {
+        Vector3 worldCenter   = transform.TransformPoint(capsule.center);
+        float   bottomOffset  = (capsule.height * 0.5f) - capsule.radius;
+        Vector3 bottomOrigin  = worldCenter + Vector3.down * bottomOffset;
+        float   sphereRadius  = capsule.radius + groundCheckOffset;
+
+        return Physics.CheckSphere(
+            bottomOrigin,
+            sphereRadius,
+            groundLayerMask,
+            QueryTriggerInteraction.Ignore
+        );
     }
 }

@@ -1,3 +1,6 @@
+// HexTile.cs
+// Causes a hex tile to fall when stepped on, then respawn and grow back.
+
 using System.Collections;
 using UnityEngine;
 
@@ -6,45 +9,48 @@ using UnityEngine;
 public class HexTile : MonoBehaviour
 {
     [Header("Falling & Respawn Settings")]
-    [Tooltip("Seconds to wait after the player steps on before the tile falls")]
+    [Tooltip("Seconds to wait after the player steps on before the tile falls.")]
     public float fallDelay = 0.8f;
 
-    [Tooltip("Seconds to wait after the tile has started falling before it begins respawning")]
+    [Tooltip("Seconds to wait after the tile has started falling before it begins respawning.")]
     public float respawnDelay = 3f;
 
-    [Tooltip("Time (in seconds) it takes for the tile to grow from zero scale to full scale")]
+    [Tooltip("Time (in seconds) it takes for the tile to grow from zero scale to full scale.")]
     public float growDuration = 1f;
 
-    // (Optional) If you want to play a sound or VFX right when it finishes growing, you can add fields here.
+    // Rigidbody and Collider for physics control
+    private Rigidbody rb;
+    private Collider col;
 
-    private Rigidbody    rb;
-    private Collider     col;
-    private Vector3      originalPosition;
-    private Quaternion   originalRotation;
-    private Vector3      originalScale;
-    private Transform    originalParent;
+    // Original transform state for respawn
+    private Vector3 originalPosition;
+    private Quaternion originalRotation;
+    private Vector3 originalScale;
+    private Transform originalParent;
 
-    private bool isScheduledToFall = false;   // Prevent multiple concurrent fall coroutines
+    // Prevent multiple fall routines from stacking
+    private bool isScheduledToFall = false;
 
-    void Awake()
+    private void Awake()
     {
-        rb  = GetComponent<Rigidbody>();
+        rb = GetComponent<Rigidbody>();
         col = GetComponent<Collider>();
 
-        // Record the “spawned” transform state exactly as it was instantiated by the grid generator:
+        // Record the spawned transform exactly as instantiated
         originalPosition = transform.position;
         originalRotation = transform.rotation;
         originalScale    = transform.localScale;
         originalParent   = transform.parent;
 
-        // Start as a “static” tile: no gravity, kinematic
-        rb.isKinematic  = true;
-        rb.useGravity   = false;
+        // Start as a static tile: no gravity, kinematic
+        rb.isKinematic = true;
+        rb.useGravity  = false;
     }
 
-    void OnCollisionEnter(Collision collision)
+    private void OnCollisionEnter(Collision collision)
     {
-        // Only trigger if a Player (tagged “Player”) steps on it, and we’re not already in the middle of a fall/respawn cycle.
+        // Only trigger when a Player (tagged "Player") steps on it
+        // and no fall routine is already running
         if (!isScheduledToFall && collision.collider.CompareTag("Player"))
         {
             isScheduledToFall = true;
@@ -54,58 +60,52 @@ public class HexTile : MonoBehaviour
 
     private IEnumerator FallAndRespawnRoutine()
     {
-        // 1) Wait for the configured fallDelay before actually dropping
+        // Wait for fallDelay before dropping
         yield return new WaitForSeconds(fallDelay);
 
-        // 2) Turn on physics so the tile falls
+        // Enable physics so the tile falls
         rb.isKinematic = false;
         rb.useGravity  = true;
 
-        // 3) OPTIONAL: If you want to disable the collider while it’s in free-fall so it doesn’t hit other tiles,
-        //    you could uncomment the next line. But leaving it on also works if you want falling tiles to bump each other.
-        // col.enabled = false;
-
-        // 4) Wait until respawnDelay has elapsed (giving it time to fall offscreen, etc.)
+        // Wait for respawnDelay to allow tile to fall offscreen
         yield return new WaitForSeconds(respawnDelay);
 
-        // 5) Begin respawn: reset physics, transform, scale, and start growing
-        RespawnReset();
-        StartCoroutine(GrowFromZeroToFull());
+        // Reset transform and physics, then grow back
+        ResetTransformAndPhysics();
+        StartCoroutine(GrowToFullSize());
     }
 
-    private void RespawnReset()
+    private void ResetTransformAndPhysics()
     {
-        // a) Stop any existing physics motion
-        rb.linearVelocity         = Vector3.zero;
+        // Stop all physics motion
+        rb.linearVelocity  = Vector3.zero;
         rb.angularVelocity = Vector3.zero;
         rb.isKinematic     = true;
         rb.useGravity      = false;
 
-        // b) Snap back to the original position & rotation & parent
+        // Restore original parent, position, and rotation
         transform.SetParent(originalParent, worldPositionStays: true);
         transform.position = originalPosition;
         transform.rotation = originalRotation;
 
-        // c) Reduce scale to zero so it “pops in” tiny
+        // Shrink to zero so it can grow back in
         transform.localScale = Vector3.zero;
 
-        // d) Ensure collider is enabled during the growth phase (so the player can step on it while it grows)
+        // Ensure collider is enabled during growth
         col.enabled = true;
 
-        // e) Allow a new fall to be triggered once it’s big enough (or even mid-growth).
-        //    We keep isScheduledToFall = true here to prevent immediately falling again before it’s visible,
-        //    but we’ll clear it after a brief lag so that stepping on mid-growth works.
+        // Delay briefly before allowing another fall
         StartCoroutine(ClearFallFlagAfterDelay(0.1f));
     }
 
     private IEnumerator ClearFallFlagAfterDelay(float delay)
     {
-        // Give a tiny bit of time (just one frame or two) before allowing OnCollisionEnter to queue up a new fall
+        // Give a small buffer (e.g., one frame) before allowing new falls
         yield return new WaitForSeconds(delay);
         isScheduledToFall = false;
     }
 
-    private IEnumerator GrowFromZeroToFull()
+    private IEnumerator GrowToFullSize()
     {
         float elapsed = 0f;
 
@@ -117,7 +117,7 @@ public class HexTile : MonoBehaviour
             yield return null;
         }
 
-        // Make absolutely sure we end at the exact original scale
+        // Ensure final scale matches exactly
         transform.localScale = originalScale;
     }
 }

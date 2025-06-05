@@ -1,34 +1,40 @@
+// DeathZone.cs
+// Disables or reloads the player when they enter a death zone trigger.
+
 using UnityEngine;
-using UnityEngine.SceneManagement; // only if you want to reload the scene
+using UnityEngine.SceneManagement;
 
 public class DeathZone : MonoBehaviour
 {
-    [Tooltip("Optional: if left empty, the player GameObject will simply be disabled on death.")]
+    [Tooltip("Optional: tag of the player GameObject. If left empty, player will be disabled on death.")]
     public string playerTag = "Player";
 
-    [Tooltip("If true, the current scene will reload when the player dies.")]
+    [Tooltip("If true, reload the current scene when the player dies.")]
     public bool reloadSceneOnDeath = true;
 
     private void OnTriggerEnter(Collider other)
     {
-        if (!other.CompareTag(playerTag)) return;
+        // Only respond if the collider matches the player tag
+        if (!other.CompareTag(playerTag))
+            return;
 
-        // 1) Disable the player’s movement script (so they can’t move after “dying”)
-        var movement = other.GetComponent<PlayerMovement>();
-        if (movement != null) movement.enabled = false;
+        // Disable the player's movement component to stop input
+        PlayerMovement movement = other.GetComponent<PlayerMovement>();
+        if (movement != null)
+        {
+            movement.enabled = false;
+        }
 
-        // 2) (Optional) Play a death animation, VFX, sound, etc. here
+        // (Optional) Play a death animation, VFX, or sound here
 
-        // 3) If you want to reload the scene:
         if (reloadSceneOnDeath)
         {
-            // Wait a fraction of a second if you want a brief death freeze (optional).
-            // You could also call this via a coroutine to add a delay.
+            // Reload the active scene immediately
             SceneManager.LoadScene(SceneManager.GetActiveScene().name);
         }
         else
         {
-            // Otherwise, just disable the player GameObject entirely:
+            // Disable the player GameObject instead of reloading
             other.gameObject.SetActive(false);
         }
     }
