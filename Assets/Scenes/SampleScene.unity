@@ -133,6 +133,7 @@ GameObject:
   - component: {fileID: 3406126}
   - component: {fileID: 3406130}
   - component: {fileID: 3406131}
+  - component: {fileID: 3406132}
   m_Layer: 3
   m_Name: Player
   m_TagString: Player
@@ -279,10 +280,32 @@ MonoBehaviour:
     serializedVersion: 2
     m_Bits: 64
   groundCheckOffset: 0.05
-  dashSpeed: 15
+  dashSpeed: 10
   dashDuration: 0.2
-  upwardDashFactor: 0.3
-  dashTiltAngle: 15
+  upwardDashFactor: 0.1
+  dashTiltAngle: -30
+--- !u!114 &3406132
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 3406125}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 40db2f3e2b869a78c9f7f3e39d962f3b, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  attackRange: 2
+  attackOffset: {x: 0, y: 0.5, z: 1}
+  knockbackForce: 10
+  upwardForce: 4
+  playerLayer:
+    serializedVersion: 2
+    m_Bits: 8
+  showAttackVisual: 1
+  attackVisualMaterial: {fileID: 0}
+  visualDuration: 0.2
 --- !u!1 &317615827
 GameObject:
   m_ObjectHideFlags: 0
@@ -754,7 +777,7 @@ MonoBehaviour:
   m_EditorClassIdentifier: 
   fillRadius: 40
   hexTilePrefab: {fileID: 2243313821772988989, guid: a386f312cd3dc1e40967638218216e65, type: 3}
-  hexRadius: 1.5
+  hexRadius: 2
   spacing: 0.1
   baseHeight: 2
 --- !u!4 &1663346246
