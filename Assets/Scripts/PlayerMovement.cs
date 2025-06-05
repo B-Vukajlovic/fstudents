@@ -44,7 +44,7 @@ public class PlayerMovement : MonoBehaviour
 
     private Rigidbody       rb;
     private CapsuleCollider capsule;
-    private PlayerControls  controls;
+    private InputSystem_Actions controls;
 
     private Vector2 moveInput     = Vector2.zero;
     private bool    jumpPressed   = false;
@@ -65,7 +65,7 @@ public class PlayerMovement : MonoBehaviour
         rb.constraints = RigidbodyConstraints.FreezeRotationX
                        | RigidbodyConstraints.FreezeRotationZ;
 
-        controls = new PlayerControls();
+        controls = new InputSystem_Actions();
 
         // Move input
         controls.Player.Move.performed += ctx => moveInput     = ctx.ReadValue<Vector2>();
@@ -77,9 +77,6 @@ public class PlayerMovement : MonoBehaviour
         // Sprint input
         controls.Player.Sprint.performed += ctx => sprintPressed = true;
         controls.Player.Sprint.canceled  += ctx => sprintPressed = false;
-
-        // Dash/Dive input
-        controls.Player.Dive.performed += ctx => TryStartDash();
     }
 
     private void OnEnable()
@@ -132,9 +129,9 @@ public class PlayerMovement : MonoBehaviour
             hasDashed = false;
         }
 
-        // Apply movement + jump if on ground
         if (isGrounded)
         {
+            // On ground: apply horizontal movement and allow jumping
             rb.linearVelocity = new Vector3(worldMove.x, rb.linearVelocity.y, worldMove.z);
 
             if (jumpPressed)
@@ -144,8 +141,14 @@ public class PlayerMovement : MonoBehaviour
         }
         else
         {
-            // In air: preserve existing velocity (no additional horizontal forces here)
+            // In air: preserve existing velocity
             rb.linearVelocity = new Vector3(rb.linearVelocity.x, rb.linearVelocity.y, rb.linearVelocity.z);
+
+            // If Jump was pressed while airborne, attempt dash instead of jump
+            if (jumpPressed)
+            {
+                TryStartDash();
+            }
         }
 
         // Reset jumpPressed for next frame
@@ -157,6 +160,7 @@ public class PlayerMovement : MonoBehaviour
         // Only allow a dash if:
         // - player is in the air (not grounded)
         // - player hasn’t dashed yet since last landing
+        // - not already mid-dash
         if (IsGrounded() || hasDashed || isDashing)
         {
             return;
