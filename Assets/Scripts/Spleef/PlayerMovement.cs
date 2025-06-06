@@ -1,8 +1,3 @@
-// PlayerMovement.cs
-// Handles player movement (walking, sprinting), jumping, rotating to face movement direction,
-// and a one‐time air dash/dive feature that stays tilted until landing.
-// Now also includes a finite stamina system for sprinting, with a world‐space bar above the player.
-
 using UnityEngine;
 using UnityEngine.UI;    // Needed for the stamina UI Image
 using UnityEngine.InputSystem;  // Added for PlayerInput and InputAction
@@ -69,7 +64,8 @@ public class PlayerMovement : MonoBehaviour
     [Tooltip("Assign a UI Image (with Image Type = Filled, Fill Method = Horizontal) that represents the bar.")]
     public Image staminaBarFillImage;
 
-    private Rigidbody       rb;
+    private Animator animator;
+    private Rigidbody rb;
     private CapsuleCollider capsule;
 
     // INPUT via PlayerInput:
@@ -102,6 +98,7 @@ public class PlayerMovement : MonoBehaviour
     {
         rb      = GetComponent<Rigidbody>();
         capsule = GetComponent<CapsuleCollider>();
+        animator = GetComponent<Animator>();
 
         // Freeze rotation on X/Z so we only rotate around Y manually
         rb.constraints = RigidbodyConstraints.FreezeRotationX
@@ -116,7 +113,7 @@ public class PlayerMovement : MonoBehaviour
 
         // Set up PlayerInput and find actions
         playerInput = GetComponent<PlayerInput>();
-        moveAction  = playerInput.actions.FindAction("Move");
+        moveAction  = playerInput.actions.FindAction("Move"); 
         jumpAction  = playerInput.actions.FindAction("Jump");
         sprintAction= playerInput.actions.FindAction("Sprint");
 
@@ -156,6 +153,9 @@ public class PlayerMovement : MonoBehaviour
         {
             staminaBarFillImage.fillAmount = currentStamina / maxStamina;
         }
+
+        bool isMoving = moveInput.sqrMagnitude > 0.001f;
+        animator.SetBool("IsRunning", isMoving);
     }
 
     private void FixedUpdate()
@@ -164,6 +164,7 @@ public class PlayerMovement : MonoBehaviour
         if (isDashing)
         {
             HandleDashing();
+            jumpPressed = false;
             return;
         }
 
@@ -219,6 +220,7 @@ public class PlayerMovement : MonoBehaviour
 
             if (jumpPressed)
             {
+                animator.SetTrigger("Jump");
                 rb.AddForce(Vector3.up * jumpForce, ForceMode.Impulse);
             }
         }
@@ -230,6 +232,7 @@ public class PlayerMovement : MonoBehaviour
             // If Jump was pressed while airborne, attempt dash instead of jump
             if (jumpPressed)
             {
+                animator.SetTrigger("Dash");
                 TryStartDash();
             }
         }
@@ -288,7 +291,6 @@ public class PlayerMovement : MonoBehaviour
             return;
         }
 
-        // Begin a new dash:
         isDashing    = true;
         dashTimeLeft = dashDuration;
         hasDashed    = true;
@@ -314,21 +316,9 @@ public class PlayerMovement : MonoBehaviour
             dashTimeLeft -= Time.fixedDeltaTime;
         }
 
-        // Always tilt to face the dash direction while airborne:
-        if (!IsGrounded())
+        if (IsGrounded())
         {
-            // Compute yaw from dashDirection (so facing horizontal)
-            float yaw = Mathf.Atan2(dashDirection.x, dashDirection.z) * Mathf.Rad2Deg;
-            // Apply a forward-facing pitch of dashTiltAngle (negative for nose-down)
-            transform.rotation = Quaternion.Euler(-dashTiltAngle, yaw, 0f);
-        }
-        else
-        {
-            // Landed: end the dash/tilt state
             isDashing = false;
-            // Reset pitch/roll so the player stands upright once grounded
-            float currentYaw = transform.eulerAngles.y;
-            transform.rotation = Quaternion.Euler(0f, currentYaw, 0f);
         }
     }
 
