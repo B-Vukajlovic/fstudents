@@ -41,9 +41,6 @@ public class PlayerMovement : MonoBehaviour
     [Range(0f, 1f)]
     public float upwardDashFactor = 0.3f;
 
-    [Tooltip("Tilt angle (in degrees) forward while dashing.")]
-    public float dashTiltAngle = 15f;
-
     [Header("Stamina Settings")]
     [Tooltip("Maximum stamina value.")]
     public float maxStamina = 100f;
@@ -156,6 +153,10 @@ public class PlayerMovement : MonoBehaviour
 
         bool isMoving = moveInput.sqrMagnitude > 0.001f;
         animator.SetBool("IsRunning", isMoving);
+
+        // hook up grounded state for looping dive animation
+        bool isGrounded = IsGrounded();
+        animator.SetBool("IsGrounded", isGrounded);
     }
 
     private void FixedUpdate()
@@ -316,6 +317,7 @@ public class PlayerMovement : MonoBehaviour
             dashTimeLeft -= Time.fixedDeltaTime;
         }
 
+        // stop dash when grounded
         if (IsGrounded())
         {
             isDashing = false;
