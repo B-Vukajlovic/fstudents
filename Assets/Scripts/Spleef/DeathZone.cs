@@ -75,7 +75,7 @@ public class DeathZone : MonoBehaviour
             return;
 
         // Disable that player's movement script so they stop moving
-        PlayerMovement movement = other.GetComponent<PlayerMovement>();
+        PlayerMovementSpleef movement = other.GetComponent<PlayerMovementSpleef>();
         if (movement != null)
             movement.enabled = false;
 
