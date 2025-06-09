@@ -75,6 +75,37 @@ MonoBehaviour:
   m_FillOrigin: 0
   m_UseSpriteMesh: 0
   m_PixelsPerUnitMultiplier: 1
+--- !u!1 &5884331076119513081
+GameObject:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  serializedVersion: 6
+  m_Component:
+  - component: {fileID: 9120340194501456231}
+  m_Layer: 0
+  m_Name: PaintOrigin
+  m_TagString: Untagged
+  m_Icon: {fileID: 0}
+  m_NavMeshLayer: 0
+  m_StaticEditorFlags: 0
+  m_IsActive: 1
+--- !u!4 &9120340194501456231
+Transform:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 5884331076119513081}
+  serializedVersion: 2
+  m_LocalRotation: {x: -0.00000023841855, y: 0.000000040190816, z: -0.00000023694751, w: 1}
+  m_LocalPosition: {x: 0, y: 1, z: 0}
+  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_ConstrainProportionsScale: 0
+  m_Children: []
+  m_Father: {fileID: 6256904526013375428}
+  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
 --- !u!1 &7172878617821871137
 GameObject:
   m_ObjectHideFlags: 0
@@ -558,14 +589,16 @@ PrefabInstance:
       propertyPath: m_Layer
       value: 0
       objectReference: {fileID: 0}
-    m_RemovedComponents:
-    - {fileID: 5866666021909216657, guid: 5ef94e446c7d5541e84714c2858eeb0f, type: 3}
+    m_RemovedComponents: []
     m_RemovedGameObjects:
     - {fileID: 65702495048144492, guid: 5ef94e446c7d5541e84714c2858eeb0f, type: 3}
     m_AddedGameObjects:
     - targetCorrespondingSourceObject: {fileID: -8679921383154817045, guid: 5ef94e446c7d5541e84714c2858eeb0f, type: 3}
       insertIndex: 0
       addedObject: {fileID: 4481656687914491091}
+    - targetCorrespondingSourceObject: {fileID: -8679921383154817045, guid: 5ef94e446c7d5541e84714c2858eeb0f, type: 3}
+      insertIndex: -1
+      addedObject: {fileID: 9120340194501456231}
     m_AddedComponents:
     - targetCorrespondingSourceObject: {fileID: 919132149155446097, guid: 5ef94e446c7d5541e84714c2858eeb0f, type: 3}
       insertIndex: -1
@@ -578,10 +611,13 @@ PrefabInstance:
       addedObject: {fileID: 5135792980968720707}
     - targetCorrespondingSourceObject: {fileID: 919132149155446097, guid: 5ef94e446c7d5541e84714c2858eeb0f, type: 3}
       insertIndex: -1
-      addedObject: {fileID: 8783456270733726666}
+      addedObject: {fileID: 8248230480141916471}
     - targetCorrespondingSourceObject: {fileID: 919132149155446097, guid: 5ef94e446c7d5541e84714c2858eeb0f, type: 3}
       insertIndex: -1
-      addedObject: {fileID: 8248230480141916471}
+      addedObject: {fileID: 69136928484127919}
+    - targetCorrespondingSourceObject: {fileID: 919132149155446097, guid: 5ef94e446c7d5541e84714c2858eeb0f, type: 3}
+      insertIndex: -1
+      addedObject: {fileID: 1772055491495277097}
   m_SourcePrefab: {fileID: 100100000, guid: 5ef94e446c7d5541e84714c2858eeb0f, type: 3}
 --- !u!4 &6256904526013375428 stripped
 Transform:
@@ -673,36 +709,6 @@ MonoBehaviour:
   m_DefaultActionMap: Player
   m_SplitScreenIndex: -1
   m_Camera: {fileID: 0}
---- !u!114 &8783456270733726666
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 6746160418932128126}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 40b17153888c653cda0f76f559904b4a, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: 
-  moveSpeed: 5
-  sprintMultiplier: 1.5
-  sprintRampUpTime: 2
-  jumpForce: 7
-  rotationSpeed: 360
-  groundLayerMask:
-    serializedVersion: 2
-    m_Bits: 64
-  groundCheckOffset: 0.1
-  dashSpeed: 10
-  dashDuration: 0.2
-  upwardDashFactor: 0.3
-  maxStamina: 100
-  staminaDrainRate: 25
-  staminaRegenRate: 30
-  dashStaminaCost: 20
-  staminaRegenDelay: 1
-  staminaBarFillImage: {fileID: 4425303499918052300}
 --- !u!95 &8248230480141916471
 Animator:
   serializedVersion: 7
@@ -725,3 +731,45 @@ Animator:
   m_AllowConstantClipSamplingOptimization: 1
   m_KeepAnimatorStateOnDisable: 0
   m_WriteDefaultValuesOnDisable: 0
+--- !u!114 &69136928484127919
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 6746160418932128126}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 3e591bb047f6a4493b8a6b19a2d687f6, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  moveSpeed: 5
+  sprintMultiplier: 1.5
+  sprintRampUpTime: 2
+  jumpForce: 7
+  rotationSpeed: 360
+  groundLayerMask:
+    serializedVersion: 2
+    m_Bits: 64
+  groundCheckOffset: 0.1
+--- !u!114 &1772055491495277097
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 6746160418932128126}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 46c6adece8cd7c075b9dfc12c05c5d18, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  teamId: 0
+  paintMaterial: {fileID: 2100000, guid: be53cb5604230c909963e0021ec7dcc9, type: 2}
+  maxAmmo: 100
+  reloadRate: 5
+  fireRate: 40
+  ammoBarFillImage: {fileID: 4425303499918052300}
+  paintProjectilePrefab: {fileID: 755104688509014201, guid: dabf2b882f8fcf0d89a313e31a413cdd, type: 3}
+  shootOrigin: {fileID: 9120340194501456231}
+  shootForce: 1000

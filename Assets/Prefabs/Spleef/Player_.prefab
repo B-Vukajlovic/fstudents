@@ -558,8 +558,7 @@ PrefabInstance:
       propertyPath: m_Layer
       value: 0
       objectReference: {fileID: 0}
-    m_RemovedComponents:
-    - {fileID: 5866666021909216657, guid: 5ef94e446c7d5541e84714c2858eeb0f, type: 3}
+    m_RemovedComponents: []
     m_RemovedGameObjects:
     - {fileID: 65702495048144492, guid: 5ef94e446c7d5541e84714c2858eeb0f, type: 3}
     m_AddedGameObjects:
@@ -697,7 +696,6 @@ MonoBehaviour:
   dashSpeed: 10
   dashDuration: 0.2
   upwardDashFactor: 0.3
-  dashTiltAngle: -30
   maxStamina: 100
   staminaDrainRate: 25
   staminaRegenRate: 30
