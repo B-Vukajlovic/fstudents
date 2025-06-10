@@ -29,8 +29,16 @@ public class PlayerMovementTurf : MonoBehaviour
     [Tooltip("How far below the capsule to check for ground.")]
     public float groundCheckOffset = 0.1f;
 
-    private Animator animator;
-    private Rigidbody rb;
+    [Header("Turf Penalty Settings")]
+    [Tooltip("How far down to check turf colour.")]
+    public float turfCheckDistance = 1f;
+    [Tooltip("Speed multiplier when off own turf.")]
+    public float turfSpeedPenalty = 0.5f;
+    [Tooltip("Jump multiplier when off own turf.")]
+    public float turfJumpPenalty = 0.5f;
+
+    private Animator       animator;
+    private Rigidbody      rb;
     private CapsuleCollider capsule;
 
     // INPUT via PlayerInput:
@@ -39,13 +47,17 @@ public class PlayerMovementTurf : MonoBehaviour
     private InputAction jumpAction;
     private InputAction sprintAction;
 
-    private Vector2 moveInput = Vector2.zero;
-    private bool jumpPressed = false;
-    private bool sprintPressed = false;
+    private Vector2 moveInput     = Vector2.zero;
+    private bool    jumpPressed   = false;
+    private bool    sprintPressed = false;
 
     // Sprint acceleration state:
     private float currentSprintMultiplier = 1f;
     private float sprintAccelerationRate;
+
+    // Cached player color for turf checks
+    private Renderer playerRenderer;
+    private Color    playerColor;
 
     private void Awake()
     {
@@ -53,15 +65,20 @@ public class PlayerMovementTurf : MonoBehaviour
         capsule  = GetComponent<CapsuleCollider>();
         animator = GetComponent<Animator>();
 
-        // Freeze X/Z rotation so we only rotate around Y
+        // Freeze all rotations so physics doesn't topple us
         rb.constraints = RigidbodyConstraints.FreezeRotationX
                        | RigidbodyConstraints.FreezeRotationY
                        | RigidbodyConstraints.FreezeRotationZ;
 
-        // Calculate how fast we interpolate from 1 → sprintMultiplier
+        // Calculate sprint-up rate
         sprintAccelerationRate = (sprintMultiplier - 1f) / sprintRampUpTime;
 
-        // Set up PlayerInput and actions
+        // Cache our colour
+        playerRenderer = GetComponentInChildren<Renderer>();
+        if (playerRenderer != null)
+            playerColor = playerRenderer.material.color;
+
+        // Set up InputSystem actions
         playerInput  = GetComponent<PlayerInput>();
         moveAction   = playerInput.actions.FindAction("Move");
         jumpAction   = playerInput.actions.FindAction("Jump");
@@ -69,9 +86,7 @@ public class PlayerMovementTurf : MonoBehaviour
 
         moveAction.performed += ctx => moveInput = ctx.ReadValue<Vector2>();
         moveAction.canceled  += ctx => moveInput = Vector2.zero;
-
         jumpAction.performed += ctx => jumpPressed = true;
-
         sprintAction.performed += ctx => sprintPressed = true;
         sprintAction.canceled  += ctx => sprintPressed = false;
     }
@@ -92,19 +107,24 @@ public class PlayerMovementTurf : MonoBehaviour
 
     private void Update()
     {
-        // Update animator flags
-        bool isMoving  = moveInput.sqrMagnitude > 0.001f;
-        bool grounded  = IsGrounded();
+        bool isMoving = moveInput.sqrMagnitude > 0.001f;
+        bool grounded = IsGrounded();
         animator.SetBool("IsRunning", isMoving);
         animator.SetBool("IsGrounded", grounded);
     }
 
     private void FixedUpdate()
     {
-        // Build world‐space input vector
+        // Determine if we’re on our own turf
+        bool onOwnTurf = IsOnOwnTurf();
+
+        // Apply penalty multipliers if not on our turf
+        float speedMul = onOwnTurf ? 1f : turfSpeedPenalty;
+        float jumpMul  = onOwnTurf ? 1f : turfJumpPenalty;
+
         Vector3 inputDir = new Vector3(moveInput.x, 0f, moveInput.y);
 
-        // Handle sprint (now unlimited)
+        // Handle sprinting ramp
         if (sprintPressed && inputDir.sqrMagnitude > 0.01f)
         {
             currentSprintMultiplier += sprintAccelerationRate * Time.fixedDeltaTime;
@@ -115,12 +135,13 @@ public class PlayerMovementTurf : MonoBehaviour
             currentSprintMultiplier = 1f;
         }
 
-        float speed     = moveSpeed * currentSprintMultiplier;
+        // Apply move speed + sprint + turf penalty
+        float speed = moveSpeed * currentSprintMultiplier * speedMul;
         Vector3 moveVec = (inputDir.sqrMagnitude > 1f)
                          ? inputDir.normalized * speed
                          : inputDir * speed;
 
-        // Smooth rotation toward movement
+        // Smooth rotation toward movement direction
         if (inputDir.sqrMagnitude > 0.001f)
         {
             Quaternion targetRot = Quaternion.LookRotation(inputDir.normalized);
@@ -133,24 +154,19 @@ public class PlayerMovementTurf : MonoBehaviour
 
         bool groundedNow = IsGrounded();
 
-        // Reset jump state on ground
-        if (groundedNow)
-            rb.linearVelocity = new Vector3(moveVec.x, rb.linearVelocity.y, moveVec.z);
-
-        // Jump or apply gravity
         if (groundedNow)
         {
+            rb.linearVelocity = new Vector3(moveVec.x, rb.linearVelocity.y, moveVec.z);
             if (jumpPressed)
             {
                 animator.SetTrigger("Jump");
-                rb.AddForce(Vector3.up * jumpForce, ForceMode.Impulse);
+                rb.AddForce(Vector3.up * (jumpForce * jumpMul), ForceMode.Impulse);
             }
         }
         else
         {
-            // In air, preserve horizontal/vertical separately
+            // Preserve in-air velocity
             rb.linearVelocity = new Vector3(rb.linearVelocity.x, rb.linearVelocity.y, rb.linearVelocity.z);
-            // no dash logic here anymore
         }
 
         jumpPressed = false;
@@ -169,5 +185,32 @@ public class PlayerMovementTurf : MonoBehaviour
             groundLayerMask,
             QueryTriggerInteraction.Ignore
         );
+    }
+
+    private bool IsOnOwnTurf()
+    {
+        // Cast from just above the player's feet to avoid hitting the player's own collider
+        Vector3 origin     = transform.position + Vector3.up * 0.1f;
+        float   maxDistance = turfCheckDistance + 0.1f;
+
+        RaycastHit hit;
+        if (Physics.Raycast(
+                origin,
+                Vector3.down,
+                out hit,
+                maxDistance,
+                groundLayerMask,                    // still your ground mask
+                QueryTriggerInteraction.Ignore))
+        {
+            // Only consider objects that have been painted
+            var paintable = hit.collider.GetComponent<PaintableSurface>();
+            if (paintable == null)
+                return false;
+
+            // Compare the painted colour to the player's colour
+            var rend = hit.collider.GetComponent<Renderer>();
+            return rend != null && rend.material.color == playerColor;
+        }
+        return false;
     }
 }
