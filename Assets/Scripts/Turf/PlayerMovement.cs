@@ -56,7 +56,7 @@ public class PlayerMovementTurf : MonoBehaviour
     private float sprintAccelerationRate;
 
     // Cached player color for turf checks
-    private Renderer playerRenderer;
+    private SkinnedMeshRenderer playerRenderer;
     private Color    playerColor;
 
     private void Awake()
@@ -74,9 +74,9 @@ public class PlayerMovementTurf : MonoBehaviour
         sprintAccelerationRate = (sprintMultiplier - 1f) / sprintRampUpTime;
 
         // Cache our colour
-        playerRenderer = GetComponentInChildren<Renderer>();
-        if (playerRenderer != null)
-            playerColor = playerRenderer.material.color;
+        Transform bodyTransform = transform.Find("Body.008");
+        playerRenderer = bodyTransform.GetComponentInChildren<SkinnedMeshRenderer>();
+        playerColor = playerRenderer.material.color;
 
         // Set up InputSystem actions
         playerInput  = GetComponent<PlayerInput>();

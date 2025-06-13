@@ -1,5 +1,4 @@
 // PlayerShooting.cs
-// Based on your original PlayerShooting.cs :contentReference[oaicite:1]{index=1}
 using UnityEngine;
 using UnityEngine.InputSystem;
 using UnityEngine.UI;
@@ -41,8 +40,8 @@ public class PlayerShooting : MonoBehaviour
     private float       nextFireTime;
     private float       currentAmmo;
 
-    // Cached player color for turf checks
-    private Renderer playerRenderer;
+    // Cached player color & renderer
+    private SkinnedMeshRenderer playerRenderer;
     private Color    playerColor;
 
     private void Awake()
@@ -54,10 +53,10 @@ public class PlayerShooting : MonoBehaviour
         if (audioSource == null && shootSound != null)
             audioSource = gameObject.AddComponent<AudioSource>();
 
-        // Cache our colour
-        playerRenderer = GetComponentInChildren<Renderer>();
-        if (playerRenderer != null)
-            playerColor = playerRenderer.material.color;
+        // Cache our colour from the child named "Body.008"
+        Transform bodyTransform = transform.Find("Body.008");
+        playerRenderer = bodyTransform.GetComponentInChildren<SkinnedMeshRenderer>();
+        playerColor = playerRenderer.material.color;
 
         // Input callbacks
         shootAction.performed += ctx => isFiring = true;
@@ -159,14 +158,25 @@ public class PlayerShooting : MonoBehaviour
 
     private bool IsOnOwnTurf()
     {
+        // Cast from just above the player's feet to avoid hitting the player's own collider
+        Vector3 origin     = transform.position + Vector3.up * 0.1f;
+        float   maxDistance = turfCheckDistance + 0.1f;
+
         RaycastHit hit;
         if (Physics.Raycast(
-                transform.position,
+                origin,
                 Vector3.down,
                 out hit,
-                turfCheckDistance,
-                paintLayerMask))
+                maxDistance,
+                paintLayerMask,
+                QueryTriggerInteraction.Ignore))
         {
+            // Only consider objects that have been painted
+            var paintable = hit.collider.GetComponent<PaintableSurface>();
+            if (paintable == null)
+                return false;
+
+            // Compare the painted colour to the player's colour
             var rend = hit.collider.GetComponent<Renderer>();
             return rend != null && rend.material.color == playerColor;
         }
