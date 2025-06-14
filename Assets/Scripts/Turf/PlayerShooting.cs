@@ -9,10 +9,13 @@ public class PlayerShooting : MonoBehaviour
     [Header("Shooting Settings")]
     public GameObject projectilePrefab;
     public Transform  firePoint;
-    public float      projectileSpeed = 20f;
-    public float      fireRate        = 0.2f;
-    public float      maxSpreadAngle  = 5f;
+    public float      projectileSpeed    = 20f;
+    public float      fireRate           = 0.2f;
+    public float      maxSpreadAngle     = 5f;
     public LayerMask  paintLayerMask;
+
+    [Tooltip("Lifetime of each projectile in seconds before it’s automatically destroyed.")]
+    public float      projectileLifeTime = 5f;
 
     [Header("Ammo Settings")]
     [Tooltip("Maximum ammo capacity")]
@@ -136,6 +139,9 @@ public class PlayerShooting : MonoBehaviour
             firePoint.position,
             spreadRot
         );
+
+        // Auto‐despawn after the set lifetime
+        Destroy(projObj, projectileLifeTime);
 
         // Initialize its paint logic
         var projScript = projObj.GetComponent<Projectile>();

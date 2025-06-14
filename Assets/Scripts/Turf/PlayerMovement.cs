@@ -10,12 +10,6 @@ public class PlayerMovementTurf : MonoBehaviour
     [Tooltip("Base movement speed (units/sec).")]
     public float moveSpeed = 5f;
 
-    [Tooltip("Multiplier applied to moveSpeed when sprinting.")]
-    public float sprintMultiplier = 1.5f;
-
-    [Tooltip("Time in seconds for sprint to reach full speed.")]
-    public float sprintRampUpTime = 2f;
-
     [Tooltip("Jump impulse force.")]
     public float jumpForce = 7f;
 
@@ -32,8 +26,10 @@ public class PlayerMovementTurf : MonoBehaviour
     [Header("Turf Penalty Settings")]
     [Tooltip("How far down to check turf colour.")]
     public float turfCheckDistance = 1f;
+
     [Tooltip("Speed multiplier when off own turf.")]
     public float turfSpeedPenalty = 0.5f;
+
     [Tooltip("Jump multiplier when off own turf.")]
     public float turfJumpPenalty = 0.5f;
 
@@ -45,15 +41,9 @@ public class PlayerMovementTurf : MonoBehaviour
     private PlayerInput playerInput;
     private InputAction moveAction;
     private InputAction jumpAction;
-    private InputAction sprintAction;
 
-    private Vector2 moveInput     = Vector2.zero;
-    private bool    jumpPressed   = false;
-    private bool    sprintPressed = false;
-
-    // Sprint acceleration state:
-    private float currentSprintMultiplier = 1f;
-    private float sprintAccelerationRate;
+    private Vector2 moveInput   = Vector2.zero;
+    private bool    jumpPressed = false;
 
     // Cached player color for turf checks
     private SkinnedMeshRenderer playerRenderer;
@@ -70,9 +60,6 @@ public class PlayerMovementTurf : MonoBehaviour
                        | RigidbodyConstraints.FreezeRotationY
                        | RigidbodyConstraints.FreezeRotationZ;
 
-        // Calculate sprint-up rate
-        sprintAccelerationRate = (sprintMultiplier - 1f) / sprintRampUpTime;
-
         // Cache our colour
         Transform bodyTransform = transform.Find("Body.008");
         playerRenderer = bodyTransform.GetComponentInChildren<SkinnedMeshRenderer>();
@@ -82,27 +69,22 @@ public class PlayerMovementTurf : MonoBehaviour
         playerInput  = GetComponent<PlayerInput>();
         moveAction   = playerInput.actions.FindAction("Move");
         jumpAction   = playerInput.actions.FindAction("Jump");
-        sprintAction = playerInput.actions.FindAction("Sprint");
 
         moveAction.performed += ctx => moveInput = ctx.ReadValue<Vector2>();
         moveAction.canceled  += ctx => moveInput = Vector2.zero;
         jumpAction.performed += ctx => jumpPressed = true;
-        sprintAction.performed += ctx => sprintPressed = true;
-        sprintAction.canceled  += ctx => sprintPressed = false;
     }
 
     private void OnEnable()
     {
         moveAction.Enable();
         jumpAction.Enable();
-        sprintAction.Enable();
     }
 
     private void OnDisable()
     {
         moveAction.Disable();
         jumpAction.Disable();
-        sprintAction.Disable();
     }
 
     private void Update()
@@ -124,19 +106,8 @@ public class PlayerMovementTurf : MonoBehaviour
 
         Vector3 inputDir = new Vector3(moveInput.x, 0f, moveInput.y);
 
-        // Handle sprinting ramp
-        if (sprintPressed && inputDir.sqrMagnitude > 0.01f)
-        {
-            currentSprintMultiplier += sprintAccelerationRate * Time.fixedDeltaTime;
-            currentSprintMultiplier = Mathf.Min(currentSprintMultiplier, sprintMultiplier);
-        }
-        else
-        {
-            currentSprintMultiplier = 1f;
-        }
-
-        // Apply move speed + sprint + turf penalty
-        float speed = moveSpeed * currentSprintMultiplier * speedMul;
+        // Compute final move speed
+        float speed = moveSpeed * speedMul;
         Vector3 moveVec = (inputDir.sqrMagnitude > 1f)
                          ? inputDir.normalized * speed
                          : inputDir * speed;
@@ -190,7 +161,7 @@ public class PlayerMovementTurf : MonoBehaviour
     private bool IsOnOwnTurf()
     {
         // Cast from just above the player's feet to avoid hitting the player's own collider
-        Vector3 origin     = transform.position + Vector3.up * 0.1f;
+        Vector3 origin      = transform.position + Vector3.up * 0.1f;
         float   maxDistance = turfCheckDistance + 0.1f;
 
         RaycastHit hit;
@@ -199,7 +170,7 @@ public class PlayerMovementTurf : MonoBehaviour
                 Vector3.down,
                 out hit,
                 maxDistance,
-                groundLayerMask,                    // still your ground mask
+                groundLayerMask,
                 QueryTriggerInteraction.Ignore))
         {
             // Only consider objects that have been painted
