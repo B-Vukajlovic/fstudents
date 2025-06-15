@@ -718,6 +718,14 @@ PrefabInstance:
       propertyPath: projectileLifeTime
       value: 3
       objectReference: {fileID: 0}
+    - target: {fileID: 4425303499918052300, guid: 94b168eb25941476aa8cd50395dd2b33, type: 3}
+      propertyPath: m_Color.b
+      value: 1
+      objectReference: {fileID: 0}
+    - target: {fileID: 4425303499918052300, guid: 94b168eb25941476aa8cd50395dd2b33, type: 3}
+      propertyPath: m_Color.g
+      value: 0.4573648
+      objectReference: {fileID: 0}
     - target: {fileID: 6256904526013375428, guid: 94b168eb25941476aa8cd50395dd2b33, type: 3}
       propertyPath: m_LocalPosition.x
       value: 0
