@@ -1,44 +1,43 @@
-// PlayerMovementTurf.cs
+// PlayerMovement.cs
 using UnityEngine;
 using UnityEngine.InputSystem;
 
 [RequireComponent(typeof(Rigidbody), typeof(CapsuleCollider), typeof(PlayerInput))]
-[RequireComponent(typeof(PlayerManager))]
 public class PlayerMovementTurf : MonoBehaviour
 {
     [Header("Movement Settings")]
-    public float moveSpeed         = 5f;
-    public float jumpForce         = 7f;
-    public float rotationSpeed     = 360f;
+    public float moveSpeed = 5f;
+    public float jumpForce = 7f;
+    public float rotationSpeed = 360f;
 
     [Header("Ground Check")]
     public LayerMask groundLayerMask;
-    public float     groundCheckOffset = 0.1f;
+    public float groundCheckOffset = 0.1f;
 
     [Header("Turf Penalty Settings")]
     public float turfCheckDistance = 1f;
-    public float turfSpeedPenalty  = 0.5f;
-    public float turfJumpPenalty   = 0.5f;
+    public float turfSpeedPenalty = 0.5f;
+    public float turfJumpPenalty = 0.5f;
 
-    // internal
-    private Animator      animator;
-    private Rigidbody     rb;
+    private Animator animator;
+    private Rigidbody rb;
     private CapsuleCollider capsule;
-    private PlayerInput    playerInput;
-    private InputAction    moveAction;
-    private InputAction    jumpAction;
-    private Vector2        moveInput;
-    private bool           jumpPressed;
-    private PlayerManager  pm;
+    private PlayerInput playerInput;
+    private InputAction moveAction;
+    private InputAction jumpAction;
+
+    private Vector2 moveInput;
+    private bool jumpPressed;
+    private Color playerColor;
 
     private void Awake()
     {
-        rb        = GetComponent<Rigidbody>();
-        capsule   = GetComponent<CapsuleCollider>();
-        animator  = GetComponent<Animator>();
-        pm        = GetComponent<PlayerManager>();
-
+        rb       = GetComponent<Rigidbody>();
+        capsule  = GetComponent<CapsuleCollider>();
+        animator = GetComponent<Animator>();
         rb.constraints = RigidbodyConstraints.FreezeRotation;
+
+        playerColor = TurfUtilities.GetPlayerColor(transform);
 
         playerInput = GetComponent<PlayerInput>();
         moveAction  = playerInput.actions.FindAction("Move");
@@ -69,28 +68,18 @@ public class PlayerMovementTurf : MonoBehaviour
 
     private void FixedUpdate()
     {
-        bool onOwnTurf = TurfUtilities.IsOnOwnTurf(
-                              transform,
-                              pm.Color,
-                              groundLayerMask,
-                              turfCheckDistance
-                          );
-
-        float speedMul = onOwnTurf ? 1f : turfSpeedPenalty;
-        float jumpMul  = onOwnTurf ? 1f : turfJumpPenalty;
+        var onOwnTurf = TurfUtilities.IsOnOwnTurf(transform, playerColor, groundLayerMask, turfCheckDistance);
+        var speedMul  = onOwnTurf ? 1f : turfSpeedPenalty;
+        var jumpMul   = onOwnTurf ? 1f : turfJumpPenalty;
 
         var inputDir = new Vector3(moveInput.x, 0f, moveInput.y);
-        var moveVec  = (inputDir.sqrMagnitude > 1f ? inputDir.normalized : inputDir)
-                         * (moveSpeed * speedMul);
+        var finalSpeed = moveSpeed * speedMul;
+        var moveVec = (inputDir.sqrMagnitude > 1f ? inputDir.normalized : inputDir) * finalSpeed;
 
         if (inputDir.sqrMagnitude > 0.001f)
         {
-            Quaternion targetRot = Quaternion.LookRotation(inputDir.normalized);
-            transform.rotation = Quaternion.RotateTowards(
-                                     transform.rotation,
-                                     targetRot,
-                                     rotationSpeed * Time.fixedDeltaTime
-                                 );
+            var targetRot = Quaternion.LookRotation(inputDir.normalized);
+            transform.rotation = Quaternion.RotateTowards(transform.rotation, targetRot, rotationSpeed * Time.fixedDeltaTime);
         }
 
         if (IsGrounded())
@@ -110,14 +99,8 @@ public class PlayerMovementTurf : MonoBehaviour
     {
         var worldCenter  = transform.TransformPoint(capsule.center);
         var bottomOffset = (capsule.height * 0.5f) - capsule.radius;
-        var origin       = worldCenter + Vector3.down * bottomOffset;
+        var bottomOrigin = worldCenter + Vector3.down * bottomOffset;
         var radius       = capsule.radius + groundCheckOffset;
-
-        return Physics.CheckSphere(
-                   origin,
-                   radius,
-                   groundLayerMask,
-                   QueryTriggerInteraction.Ignore
-               );
+        return Physics.CheckSphere(bottomOrigin, radius, groundLayerMask, QueryTriggerInteraction.Ignore);
     }
 }
